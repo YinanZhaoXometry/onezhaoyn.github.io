@@ -1,4 +1,8 @@
-### Hi there 👋
+### Hi there 👋 I'm a FE developer based in Beijing
+
+- 📫 How to reach me: 
+  - email: onezhaoyn@gmail.com
+  - wechat: zhuayinnan
 
 <!--
 **onezhaoyn/onezhaoyn** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
