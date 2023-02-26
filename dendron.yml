@@ -23,13 +23,8 @@ commands:
   templateHierarchy: template
 workspace:
   vaults:
-    - fsPath: 2ndbrain
-      name: 2ndbrain
-    - fsPath: blog
-      name: blog
     - fsPath: vault
-      seed: dendron.tldr
-      name: dendron.tldr
+      name: vault
   journal:
     dailyDomain: daily
     name: journal
@@ -77,11 +72,6 @@ workspace:
   maxNoteLength: 204800
   dendronVersion: 0.85.0
   enableFullHierarchyNoteTitle: false
-  seeds:
-    dendron.tldr:
-      site:
-        url: https://tldr.dendron.so
-        index: cli
 preview:
   enableFMTitle: true
   enableNoteTitleForLink: true
@@ -102,8 +92,8 @@ publishing:
   writeStubs: false
   siteRootDir: docs
   seo:
-    title: Dendron
-    description: Personal knowledge space
+    title: Yinan Zhao's Blog
+    description: 个人博客
   github:
     enableEditLink: true
     editLinkText: Edit this page on GitHub
@@ -116,9 +106,8 @@ publishing:
   enableTaskNotes: true
   enablePrettyLinks: true
   searchMode: lookup
+  hierarchyDisplayTitle: 子集文章
   duplicateNoteBehavior:
     action: useVault
     payload:
-      - dendron.tldr
-      - blog
-      - 2ndbrain
+      - vault
