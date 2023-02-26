@@ -26,8 +26,8 @@ jobs:
             !.next/.env.*
           key: ${{ runner.os }}-dendronv2-${{ hashFiles('**/yarn.lock', '**/package-lock.json') }}
 
-      - name: pull git submodules
-        run: git submodule foreach git pull
+      # - name: pull git submodules
+      #   run: git submodule foreach git pull
 
       - name: Install dependencies
         run: yarn
