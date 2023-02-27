@@ -1,0 +1,179 @@
+<h1 id="javascript-中是多少-原创翻译">JavaScript 中{}+{}是多少？ (原创翻译)<a aria-hidden="true" class="anchor-heading icon-link" href="#javascript-中是多少-原创翻译"></a></h1>
+<blockquote>
+<p>写于：2018-04-10</p>
+</blockquote>
+<p><img src="/assets/images/2023-02-26-10-15-13.png"></p>
+<blockquote>
+<p>原文：<a href="http://2ality.com/2012/01/object-plus-object.html">What is {} + {} in JavaScript?</a> > <img src="https://ws2.sinaimg.cn/large/006tKfTcly1g0k77picxdj30m808cglu.jpg" alt="title image">
+Gary Bernhardt 最近在他的“<a href="https://www.destroyallsoftware.com/talks/wat">Wat</a>”演讲中，指出了一个 JavaScript 语言有趣而又奇怪之处：当你把对象和数组相加时，会得到意想不到的结果。 本文将解释逐一进行解释。
+JavaScript 的加法规则其实很简单：你只能使用数字和字符串进行相加，而所有其他数据类型都将被转换为其中一种。为了理解类型转换的原理，我们首先需要了解一些基础知识。
+注意：本文中提到的章节（比如第 9.1 节）都出自 ECMA-262 语言规范（ECMAScript 5.1）。
+让我们先快速的复习一下：JavaScript 中有两种类型的值：原始值（primitive）和对象（object）[1]。 原始值包括：<code>undefined</code>、<code>null</code>、<code>boolean</code>、<code>number</code>和<code>string</code>。其他所有类型的值都是对象，如：<code>array</code>和<code>function</code>等。</p>
+</blockquote>
+<h2 id="1类型转换">1.类型转换<a aria-hidden="true" class="anchor-heading icon-link" href="#1类型转换"></a></h2>
+<p>加法运算符会触发三种类型转换：它将值转换为原始值、<code>number</code>或<code>string</code>。</p>
+<h3 id="11-用-toprimitive-将值转换为原始值">1.1. 用 ToPrimitive() 将值转换为原始值<a aria-hidden="true" class="anchor-heading icon-link" href="#11-用-toprimitive-将值转换为原始值"></a></h3>
+<p><code>ToPrimitive()</code>的使用语法如下：</p>
+<pre class="language-js"><code class="language-js"><span class="token function"><span class="token maybe-class-name">ToPrimitive</span></span><span class="token punctuation">(</span>input<span class="token punctuation">,</span> <span class="token maybe-class-name">PreferredType</span><span class="token operator">?</span><span class="token punctuation">)</span>
+</code></pre>
+<p>可选参数<code>PreferredType</code>可以是<code>Number</code>或<code>String</code>类型。它仅表示期望的转换类型，而最终结果可以是任何原始类型值。假如<code>PreferredType</code>是<code>Number</code>，则将通过以下步骤完成<code>input</code>值的类型转换（第 9.1 节）：</p>
+<ol>
+<li>如<code>input</code>是原始类型值，则按原样返回。</li>
+<li>如并非原始类型值而是对象，则调用<code>obj.valueOf()</code>。如结果为原始类型值，则直接返回该值。</li>
+<li>如返回的并非原始类型值，则调用<code>obj.toString()</code>。如结果为原始类型值，则直接返回该值。</li>
+<li>如返回的并非原始类型值，则抛出<code>TypeError</code>错误。
+如<code>PreferredType</code>是<code>String</code>，则将步骤 2 和步骤 3 对调。如并未给出<code>PreferredType</code>，对于<code>Date</code>类型实例该值默认为<code>String</code>，而对于所有其他值该值默认为<code>Number</code>。</li>
+</ol>
+<h3 id="12-用-tonumber-将值转换为数字">1.2. 用 ToNumber() 将值转换为数字<a aria-hidden="true" class="anchor-heading icon-link" href="#12-用-tonumber-将值转换为数字"></a></h3>
+<p>下表解释了<code>ToNumber()</code>如何将原始类型值转换为数字的（第 9.3 节）：
+参数|结果
+---|---
+<code>undefined</code>|<code>NaN</code>
+<code>null</code>|<code>+0</code>
+boolean|<code>true</code>转换为 1，<code>false</code>转换为<code>+0</code>
+number|不用转换
+string|转换字符串中的数字，例如：将<code>"324"</code>转换为<code>324</code>
+通过调用对象<code>obj</code>的<code>ToPrimitive(obj，Number)</code>方法，对于得到的（原始类型的）结果调用<code>ToNumber()</code>将其转换为数字。
+1.3. 用 ToString() 将值转换为字符串
+下表解释了 ToString（）如何将原始类型值转换为字符串（第 9.8 节）：
+参数|结果
+---|---
+<code>undefined</code>|<code>undefined</code>
+<code>null</code>|<code>null</code>
+boolean|<code>"true"</code>或<code>"false"</code>
+number|原数字的字符串书写方式，比如：<code>"1.765"</code>
+string|不用转换
+通过调用对象<code>obj</code>的<code>ToPrimitive(obj，String)</code>方法，对于得到的（原始类型的）结果调用<code>ToString()</code>将其转换为字符串。</p>
+<h3 id="14-实践">1.4. 实践<a aria-hidden="true" class="anchor-heading icon-link" href="#14-实践"></a></h3>
+<p>通过以下对象，你将看到引擎内部的转换过程：</p>
+<pre class="language-js"><code class="language-js"><span class="token keyword">var</span> obj <span class="token operator">=</span> <span class="token punctuation">{</span>
+	<span class="token function-variable function">valueOf</span><span class="token operator">:</span> <span class="token keyword">function</span> <span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+		<span class="token console class-name">console</span><span class="token punctuation">.</span><span class="token method function property-access">log</span><span class="token punctuation">(</span><span class="token string">'valueOf'</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+		<span class="token keyword control-flow">return</span> <span class="token punctuation">{</span><span class="token punctuation">}</span><span class="token punctuation">;</span> <span class="token comment">// not a primitive</span>
+	<span class="token punctuation">}</span><span class="token punctuation">,</span>
+	<span class="token function-variable function">toString</span><span class="token operator">:</span> <span class="token keyword">function</span> <span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+		<span class="token console class-name">console</span><span class="token punctuation">.</span><span class="token method function property-access">log</span><span class="token punctuation">(</span><span class="token string">'toString'</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+		<span class="token keyword control-flow">return</span> <span class="token punctuation">{</span><span class="token punctuation">}</span><span class="token punctuation">;</span> <span class="token comment">// not a primitive</span>
+	<span class="token punctuation">}</span>
+<span class="token punctuation">}</span><span class="token punctuation">;</span>
+</code></pre>
+<p>当把<code>Number</code>作为一个普通函数（而非构造函数）调用时,会在引擎内部调用<code>ToNumber()</code>方法:</p>
+<pre class="language-js"><code class="language-js">  <span class="token operator">></span> <span class="token known-class-name class-name">Number</span><span class="token punctuation">(</span>obj<span class="token punctuation">)</span>
+  valueOf
+  toString
+  <span class="token known-class-name class-name">TypeError</span><span class="token operator">:</span> <span class="token maybe-class-name">Cannot</span> convert object to primitive value
+</code></pre>
+<h2 id="2加法">2.加法<a aria-hidden="true" class="anchor-heading icon-link" href="#2加法"></a></h2>
+<p>对于如下加法运算：</p>
+<pre class="language-js"><code class="language-js">value1 <span class="token operator">+</span> value2<span class="token punctuation">;</span>
+</code></pre>
+<p>执行该表达式时，内部运算逻辑如下（第 11.6.1 节）：</p>
+<ol>
+<li>将两个参加运算的值转换为原始类型值（以下是数学表示法，而非 JavaScript 代码）：</li>
+</ol>
+<pre><code>  prim1 := ToPrimitive(value1)
+  prim2 := ToPrimitive(value2)
+</code></pre>
+<p>此处省略了<code>PreferredType</code>，因此对于 Date 类型的值该值默认为<code>String</code>,其他类型的值该值默认为<code>Number</code>。</p>
+<ol start="2">
+<li>如果 prim1 或 prim2 有一个是字符串，则将另一个也转换为字符串，最终返回字符串拼接后的结果。</li>
+<li>如果都不是字符串，则将 prim1 和 prim2 都转换为数字，并返回他们之和。</li>
+</ol>
+<h3 id="21-符合预期结果">2.1. 符合预期结果<a aria-hidden="true" class="anchor-heading icon-link" href="#21-符合预期结果"></a></h3>
+<p>当您将两个数组相加时，结果符合我们的预期：</p>
+<pre class="language-js"><code class="language-js">  <span class="token operator">></span> <span class="token punctuation">[</span><span class="token punctuation">]</span> <span class="token operator">+</span> <span class="token punctuation">[</span><span class="token punctuation">]</span>
+  <span class="token string">''</span>
+</code></pre>
+<p>将[]转换为原始类型值，首先会调用<code>valueOf()</code>方法，最终返回数组本身（this）：</p>
+<pre class="language-js"><code class="language-js">  <span class="token operator">></span> <span class="token keyword">var</span> arr <span class="token operator">=</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">;</span>
+  <span class="token operator">></span> arr<span class="token punctuation">.</span><span class="token method function property-access">valueOf</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token operator">===</span> arr
+  <span class="token boolean">true</span>
+</code></pre>
+<p>由于结果并非原始类型值，接下来将调用<code>toString()</code>方法，返回空字符串（原始类型值）。这样一来，<code>[]+[]</code>的结果，其实就是两个空字符串拼接的值。
+将数组和对象相加也符合我们的预期：</p>
+<pre class="language-js"><code class="language-js">  <span class="token operator">></span> <span class="token punctuation">[</span><span class="token punctuation">]</span> <span class="token operator">+</span> <span class="token punctuation">{</span><span class="token punctuation">}</span>
+  <span class="token string">'[object Object]'</span>
+</code></pre>
+<p>说明：将空对象转换为字符串的结果如下：</p>
+<pre class="language-js"><code class="language-js">  <span class="token operator">></span> <span class="token known-class-name class-name">String</span><span class="token punctuation">(</span><span class="token punctuation">{</span><span class="token punctuation">}</span><span class="token punctuation">)</span>
+  <span class="token string">'[object Object]'</span>
+</code></pre>
+<p>因此，上一个表达式的结果就应该是<code>""</code>和<code>"[object Object]"</code>的字符串拼接的值。
+更多将对象转换为原始类型值的例子：</p>
+<pre class="language-js"><code class="language-js">  <span class="token operator">></span> <span class="token number">5</span> <span class="token operator">+</span> <span class="token keyword">new</span> <span class="token class-name">Number</span><span class="token punctuation">(</span><span class="token number">7</span><span class="token punctuation">)</span>
+  <span class="token number">12</span>
+  <span class="token operator">></span> <span class="token number">6</span> <span class="token operator">+</span> <span class="token punctuation">{</span> <span class="token function-variable function">valueOf</span><span class="token operator">:</span> <span class="token keyword">function</span> <span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span> <span class="token keyword control-flow">return</span> <span class="token number">2</span> <span class="token punctuation">}</span> <span class="token punctuation">}</span>
+  <span class="token number">8</span>
+  <span class="token operator">></span> <span class="token string">"abc"</span> <span class="token operator">+</span> <span class="token punctuation">{</span> <span class="token function-variable function">toString</span><span class="token operator">:</span> <span class="token keyword">function</span> <span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span> <span class="token keyword control-flow">return</span> <span class="token string">"def"</span> <span class="token punctuation">}</span> <span class="token punctuation">}</span>
+  <span class="token string">'abcdef'</span>
+</code></pre>
+<h3 id="22-非预期结果">2.2. 非预期结果<a aria-hidden="true" class="anchor-heading icon-link" href="#22-非预期结果"></a></h3>
+<p>如果<code>+</code>的头一个运算值是空对象字面量（在 Firefox 控制台输出的结果）：</p>
+<pre class="language-js"><code class="language-js">  <span class="token operator">></span> <span class="token punctuation">{</span><span class="token punctuation">}</span> <span class="token operator">+</span> <span class="token punctuation">{</span><span class="token punctuation">}</span>
+  <span class="token number">NaN</span>
+</code></pre>
+<p>这是怎么回事儿？这是由于 JavaScript 将第一个<code>{}</code>解析为空代码块并忽略了。因此，通过计算<code>+ {}</code>（加号和第二个<code>{}</code>）最终得到<code>NaN</code>。 这里的加号并非二元加法运算符，而是一元运算符前缀，它将其运算值转换为数字，其方法与<code>Number()</code>相同，例如：</p>
+<pre class="language-js"><code class="language-js">  <span class="token operator">></span> <span class="token operator">+</span><span class="token string">"3.65"</span>
+  <span class="token number">3.65</span>
+</code></pre>
+<p>以下表达式的结果都相同：</p>
+<pre class="language-js"><code class="language-js"><span class="token operator">+</span><span class="token punctuation">{</span><span class="token punctuation">}</span><span class="token punctuation">;</span>
+<span class="token known-class-name class-name">Number</span><span class="token punctuation">(</span><span class="token punctuation">{</span><span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token known-class-name class-name">Number</span><span class="token punctuation">(</span><span class="token punctuation">{</span><span class="token punctuation">}</span><span class="token punctuation">.</span><span class="token method function property-access">toString</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">;</span> <span class="token comment">// {}.valueOf() 并非原始类型值</span>
+<span class="token known-class-name class-name">Number</span><span class="token punctuation">(</span><span class="token string">'[object Object]'</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token number">NaN</span><span class="token punctuation">;</span>
+</code></pre>
+<p>为什么第一个<code>{}</code>被解析为代码块？ 原因是整个输入内容被解析成了一段语句，而以开头花括号的语句会被解析为代码块。 你也可以强制把输入内容解析为表达式，从而来修正计算结果：</p>
+<pre class="language-js"><code class="language-js">  <span class="token operator">></span> <span class="token punctuation">(</span><span class="token punctuation">{</span><span class="token punctuation">}</span> <span class="token operator">+</span> <span class="token punctuation">{</span><span class="token punctuation">}</span><span class="token punctuation">)</span>
+  <span class="token string">'[object Object][object Object]'</span>
+</code></pre>
+<p>另外,函数或方法的参数也会被解析为表达式:</p>
+<pre class="language-js"><code class="language-js">  <span class="token operator">></span> <span class="token console class-name">console</span><span class="token punctuation">.</span><span class="token method function property-access">log</span><span class="token punctuation">(</span><span class="token punctuation">{</span><span class="token punctuation">}</span> <span class="token operator">+</span> <span class="token punctuation">{</span><span class="token punctuation">}</span><span class="token punctuation">)</span>
+  <span class="token punctuation">[</span>object <span class="token known-class-name class-name">Object</span><span class="token punctuation">]</span><span class="token punctuation">[</span>object <span class="token known-class-name class-name">Object</span><span class="token punctuation">]</span>
+</code></pre>
+<p>经过前面的讲解，见到下面的计算结果，你应该不会感到惊讶：</p>
+<pre class="language-js"><code class="language-js">  <span class="token operator">></span> <span class="token punctuation">{</span><span class="token punctuation">}</span> <span class="token operator">+</span> <span class="token punctuation">[</span><span class="token punctuation">]</span>
+  <span class="token number">0</span>
+</code></pre>
+<p>同样，上述语句也被解析为代码块和<code>+ []</code>。以下表达式的结果都相同：</p>
+<pre class="language-js"><code class="language-js"><span class="token operator">+</span><span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">;</span>
+<span class="token known-class-name class-name">Number</span><span class="token punctuation">(</span><span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token known-class-name class-name">Number</span><span class="token punctuation">(</span><span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">.</span><span class="token method function property-access">toString</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">;</span> <span class="token comment">// [].valueOf() 并非原始类型值</span>
+<span class="token known-class-name class-name">Number</span><span class="token punctuation">(</span><span class="token string">''</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token number">0</span><span class="token punctuation">;</span>
+</code></pre>
+<p>有趣的是，Node.js 的<code>REPL</code>在解析类似的输入时，与 Firefox 和 Chrome(同 Node.js 一样使用 V8 引擎)的解析结果不同。以下输入被解析为表达式，结果符合我们预期：</p>
+<pre class="language-js"><code class="language-js">  <span class="token operator">></span> <span class="token punctuation">{</span><span class="token punctuation">}</span> <span class="token operator">+</span> <span class="token punctuation">{</span><span class="token punctuation">}</span>
+  <span class="token string">'[object Object][object Object]'</span>
+  <span class="token operator">></span> <span class="token punctuation">{</span><span class="token punctuation">}</span> <span class="token operator">+</span> <span class="token punctuation">[</span><span class="token punctuation">]</span>
+  <span class="token string">'[object Object]'</span>
+</code></pre>
+<p>它好处在于，其结果更像是将输入作为<code>console.log()</code>参数时所得到的结果。而非将输入用在程序语句中所得到的结果。</p>
+<h2 id="3总结">3.总结<a aria-hidden="true" class="anchor-heading icon-link" href="#3总结"></a></h2>
+<p>大多数情况下，理解 JavaScript 中<code>+</code>的工作原理并不难：您只能将数字或字符串相加。 对象将被转换为字符串（如另一运算值是字符串的话）或数字（如另一运算值并非字符串）。 如需合并数组，则需要使用以下方法：</p>
+<pre class="language-js"><code class="language-js">  <span class="token operator">></span> <span class="token punctuation">[</span><span class="token number">1</span><span class="token punctuation">,</span> <span class="token number">2</span><span class="token punctuation">]</span><span class="token punctuation">.</span><span class="token method function property-access">concat</span><span class="token punctuation">(</span><span class="token punctuation">[</span><span class="token number">3</span><span class="token punctuation">,</span> <span class="token number">4</span><span class="token punctuation">]</span><span class="token punctuation">)</span>
+  <span class="token punctuation">[</span> <span class="token number">1</span><span class="token punctuation">,</span> <span class="token number">2</span><span class="token punctuation">,</span> <span class="token number">3</span><span class="token punctuation">,</span> <span class="token number">4</span> <span class="token punctuation">]</span>
+</code></pre>
+<p>JavaScript 中没有内置的方法“连接”（合并）对象。 你需要使用像<a href="http://documentcloud.github.com/underscore/">Underscore</a>这样的库：</p>
+<pre class="language-js"><code class="language-js">  <span class="token operator">></span> <span class="token keyword">var</span> o1 <span class="token operator">=</span> <span class="token punctuation">{</span><span class="token literal-property property">eeny</span><span class="token operator">:</span><span class="token number">1</span><span class="token punctuation">,</span> <span class="token literal-property property">meeny</span><span class="token operator">:</span><span class="token number">2</span><span class="token punctuation">}</span><span class="token punctuation">;</span>
+  <span class="token operator">></span> <span class="token keyword">var</span> o2 <span class="token operator">=</span> <span class="token punctuation">{</span><span class="token literal-property property">miny</span><span class="token operator">:</span><span class="token number">3</span><span class="token punctuation">,</span> <span class="token literal-property property">moe</span><span class="token operator">:</span> <span class="token number">4</span><span class="token punctuation">}</span><span class="token punctuation">;</span>
+  <span class="token operator">></span> _<span class="token punctuation">.</span><span class="token method function property-access">extend</span><span class="token punctuation">(</span><span class="token parameter">o1<span class="token punctuation">,</span> o2</span><span class="token punctuation">)</span>
+  <span class="token punctuation">{</span> <span class="token literal-property property">eeny</span><span class="token operator">:</span> <span class="token number">1</span><span class="token punctuation">,</span>
+    <span class="token literal-property property">meeny</span><span class="token operator">:</span> <span class="token number">2</span><span class="token punctuation">,</span>
+    <span class="token literal-property property">miny</span><span class="token operator">:</span> <span class="token number">3</span><span class="token punctuation">,</span>
+    <span class="token literal-property property">moe</span><span class="token operator">:</span> <span class="token number">4</span> <span class="token punctuation">}</span>
+</code></pre>
+<p>注意：相较<code>Array.prototype.concat()</code>，<code>extend()</code>修改的是第一个参数：</p>
+<pre class="language-js"><code class="language-js">  <span class="token operator">></span> o1
+  <span class="token punctuation">{</span> <span class="token literal-property property">eeny</span><span class="token operator">:</span> <span class="token number">1</span><span class="token punctuation">,</span>
+    <span class="token literal-property property">meeny</span><span class="token operator">:</span> <span class="token number">2</span><span class="token punctuation">,</span>
+    <span class="token literal-property property">miny</span><span class="token operator">:</span> <span class="token number">3</span><span class="token punctuation">,</span>
+    <span class="token literal-property property">moe</span><span class="token operator">:</span> <span class="token number">4</span> <span class="token punctuation">}</span>
+  <span class="token operator">></span> o2
+  <span class="token punctuation">{</span> <span class="token literal-property property">miny</span><span class="token operator">:</span> <span class="token number">3</span><span class="token punctuation">,</span> <span class="token literal-property property">moe</span><span class="token operator">:</span> <span class="token number">4</span> <span class="token punctuation">}</span>
+</code></pre>
+<p>如您还想了解更多关于运算符的知识，推荐阅读这篇文章“<a href="http://2ality.com/2011/12/fake-operator-overloading.html">JavaScript 中的假运算符重载</a>”。</p>
+<h2 id="4索引">4.索引<a aria-hidden="true" class="anchor-heading icon-link" href="#4索引"></a></h2>
+<ol>
+<li><a href="http://2ality.com/2011/03/javascript-values-not-everything-is.html">JavaScript 中的值：并非所有都是对象</a></li>
+</ol>

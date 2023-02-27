@@ -1,0 +1,76 @@
+<h1 id="用-jsonp-实现跨域-ajax-请求">用 JSONP 实现跨域 AJAX 请求<a aria-hidden="true" class="anchor-heading icon-link" href="#用-jsonp-实现跨域-ajax-请求"></a></h1>
+<blockquote>
+<p>写于：2018-11-16</p>
+</blockquote>
+<p>互联网的同源政策避免了很多安全问题，但是在限制作恶的同时也造成一些不便，比如你想要向自己的服务器发送 AJAX 请求时，却被告知跨域而禁止执行。比如某家大型公司（比如维基百科）有多个子域名：</p>
+<blockquote>
+<ul>
+<li>wikipedia.com</li>
+<li>en.wikipedia.com</li>
+<li>cn.wikipedia.com</li>
+<li>它们之间无法进行数据交换，带来了很多不便。如今，为了满足合法的跨域数据交换需求已经有多个方案，最为常用包括 JSONP、CORS 等，今天下先介绍一下 JSONP。</li>
+</ul>
+</blockquote>
+<h3 id="如何用-jsonp-实现跨域请求">如何用 JSONP 实现跨域请求<a aria-hidden="true" class="anchor-heading icon-link" href="#如何用-jsonp-实现跨域请求"></a></h3>
+<p>JSONP 全称——JavaScript Object Notation with Padding 填充式 JSON。JSONP 并不是一种文件格式，而不过是一种对跨域的实现方式的称呼，实际上使用的就是 JSON 格式。
+HTML 中 script 元素，可以加载来自“不同源”主机的代码，例如：引入 Vue 框架的 js 文件，尽管脚本文件来自不同源的主机，我们的电脑也一样可以将其下载到本地之后执行：</p>
+<pre><code>&#x3C;script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js">&#x3C;script>
+</code></pre>
+<p>JSONP 就是利用了 script 元素这一特点：服务器将一段 JS 代码使用字符串的方式“填充”在 JSON 对象中，客户端网页中的 script 元素在收到 JSON 文件后将其解析并立即执行。
+上面解释了如何实现跨域传递代码，其实这样就不难理解如何把数据放在代码中一并传递了，其实是在代码中使用了客户端定义好的函数的调用，并在函数调用体内添加了相关数据。下面看看具体的实现步骤。</p>
+<h4 id="具体实现">具体实现<a aria-hidden="true" class="anchor-heading icon-link" href="#具体实现"></a></h4>
+<p>比如客户端、服务器都在本地但是端口号不同，受到同源政策的限制客户端无法向服务器实现跨域请求：</p>
+<blockquote>
+<p>客户端：http://localhost:80
+服务器：http://localhost:3000
+1）客户端做好接收数据准备
+在 script 标签中或者 JS 文件中，定义函数 myCallbackFuntion，赋予形参 data。</p>
+</blockquote>
+<pre class="language-js"><code class="language-js"><span class="token keyword">function</span> <span class="token function">myCallback</span><span class="token punctuation">(</span><span class="token parameter">data</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+	<span class="token keyword">var</span> h1 <span class="token operator">=</span> <span class="token dom variable">document</span><span class="token punctuation">.</span><span class="token method function property-access">createElement</span><span class="token punctuation">(</span><span class="token string">'h1'</span><span class="token punctuation">)</span><span class="token punctuation">;</span> <span class="token comment">//创建h1标签用于显示数据</span>
+	h1<span class="token punctuation">.</span><span class="token property-access">innerHTML</span> <span class="token operator">=</span> data<span class="token punctuation">.</span><span class="token property-access">response</span><span class="token punctuation">;</span> <span class="token comment">//将数据添加至h1标签内部</span>
+	<span class="token dom variable">document</span><span class="token punctuation">.</span><span class="token property-access">body</span><span class="token punctuation">.</span><span class="token method function property-access">appendChild</span><span class="token punctuation">(</span>h1<span class="token punctuation">)</span><span class="token punctuation">;</span> <span class="token comment">//将h1标签添加到body中</span>
+<span class="token punctuation">}</span>
+</code></pre>
+<p>2）服务器端准备好数据
+这里用 PHP 作为示例，客户端请求的 PHP 文件 user.php 中加入 header，标识所传输的数据为一段 JS 代码：</p>
+<pre><code>header("Content-Type:application/javascript")
+</code></pre>
+<p>在 user.php 中接收并储存客户端自定义的函数名：</p>
+<pre class="language-js"><code class="language-js">$callback <span class="token operator">=</span> $_REQUEST<span class="token punctuation">[</span><span class="token string">'callback'</span><span class="token punctuation">]</span><span class="token punctuation">;</span>
+</code></pre>
+<p>定义<span class="math math-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mi>a</mi><mi>t</mi><mi>a</mi><mtext>表示储存需要返回的数据：</mtext></mrow><annotation encoding="application/x-tex">data表示储存需要返回的数据：</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal">d</span><span class="mord mathnormal">a</span><span class="mord mathnormal">t</span><span class="mord mathnormal">a</span><span class="mord cjk_fallback">表示储存需要返回的数据：</span></span></span></span></span>data=["response":"hello world from JSONP!"];
+拼接字符串，将数据作为参数放在函数调用体内部，将拼接好的字符串返回客户端：
+echo "<span class="math math-inline"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>c</mi><mi>a</mi><mi>l</mi><mi>l</mi><mi>b</mi><mi>a</mi><mi>c</mi><mi>k</mi><mo stretchy="false">(</mo></mrow><annotation encoding="application/x-tex">callback(</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">c</span><span class="mord mathnormal">a</span><span class="mord mathnormal" style="margin-right:0.01968em;">ll</span><span class="mord mathnormal">ba</span><span class="mord mathnormal">c</span><span class="mord mathnormal" style="margin-right:0.03148em;">k</span><span class="mopen">(</span></span></span></span></span>data)";
+3）客户端发送请求并接收响应
+创建一个 script 标签（src=目标主机上请求 URL），在请求 URL 后附上上面定义好的函数名称：</p>
+<pre class="language-html"><code class="language-html">&#x3C;script src="http://localhost/user.php:3000?callback=myCallback”>
+</code></pre>
+<p>当 HTML 页面刷新时，浏览器会解析该 script 标签并发送 GET 请求：</p>
+<pre class="language-sh"><code class="language-sh">GET /?callback=myCallback HTTP/1.1
+</code></pre>
+<p>当接收到服务器端响应——并非普通 JSON 而是一段 JS 代码：
+myCallbackFuntion({"response": "hello world from JSONP!"})
+形成了对 myCallbackFunction 函数的调用，并传入了服务器定义的数据作为参数，最终实现了客户端与服务器端的跨域数据传递——服务器端将数据返回客户端，客户端使用数据进行页面渲染见。
+总结：
+使用 JSONP 实现跨域请求，是通过借由 script 元素（无论是在 HTML 中或者通过 JS 动态添加）通过浏览器发起 GET 请求实现的，如果你需要用到其他 HTTP 请求（比如：POST），则无法使用 JSONP 方法。
+补充：
+第 3 步的 script 标签只用来发送跨域请求，在 HTML 页面中会显得累赘，最好用后即弃，因此尽量使用 JS 代码动态创建 script，并在请求执行完成后进行移除，具体做法如下：</p>
+<pre class="language-js"><code class="language-js"><span class="token comment">// 将跨域请求封装成函数</span>
+<span class="token keyword">function</span> <span class="token function">crossOriginRequest</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+	<span class="token keyword">var</span> script <span class="token operator">=</span> <span class="token dom variable">document</span><span class="token punctuation">.</span><span class="token method function property-access">createElement</span><span class="token punctuation">(</span><span class="token string">'script'</span><span class="token punctuation">)</span><span class="token punctuation">;</span> <span class="token comment">//创建script元素并添加scr属性</span>
+	script<span class="token punctuation">.</span><span class="token property-access">src</span> <span class="token operator">=</span> <span class="token string">'http://localhost/user.php:3000?callback=myCallback'</span><span class="token punctuation">;</span>
+	<span class="token dom variable">document</span><span class="token punctuation">.</span><span class="token property-access">body</span><span class="token punctuation">.</span><span class="token method function property-access">appendChild</span><span class="token punctuation">(</span>script<span class="token punctuation">)</span><span class="token punctuation">;</span> <span class="token comment">//在body尾部加入元素</span>
+	<span class="token keyword">var</span> lastScript <span class="token operator">=</span> <span class="token dom variable">document</span><span class="token punctuation">.</span><span class="token property-access">body</span><span class="token punctuation">.</span><span class="token method function property-access">querySelector</span><span class="token punctuation">(</span><span class="token string">'script:last-child'</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+	<span class="token comment">//获取最后添加的script元素</span>
+	<span class="token dom variable">document</span><span class="token punctuation">.</span><span class="token property-access">body</span><span class="token punctuation">.</span><span class="token method function property-access">removeChild</span><span class="token punctuation">(</span>lastScript<span class="token punctuation">)</span><span class="token punctuation">;</span> <span class="token comment">//移除body尾部的script元素</span>
+<span class="token punctuation">}</span>
+
+<span class="token comment">// 在页面加载时调用跨域请求函数</span>
+<span class="token dom variable">window</span><span class="token punctuation">.</span><span class="token method-variable function-variable method function property-access">onload</span> <span class="token operator">=</span> <span class="token keyword">function</span> <span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+	<span class="token function">crossOriginRequest</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token punctuation">}</span><span class="token punctuation">;</span>
+</code></pre>
+<ol>
+<li>AJAX-Asynchronous JavaScript And XML（异步 JavaScript 和 XML），一种 web 技术的统称，客户端异步的向服务器端发送请求并从服务器端获取数据。</li>
+</ol>
